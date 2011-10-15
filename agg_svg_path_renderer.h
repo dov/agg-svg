@@ -138,7 +138,7 @@ namespace svg
 
         typedef conv_transform<curved_count>   curved_trans;
         typedef conv_contour<curved_trans>     curved_trans_contour;
-
+    
         path_renderer();
 
         void remove_all();
@@ -165,6 +165,13 @@ namespace svg
                     double x,  double y, bool rel=false);
         void curve4(double x2, double y2,                   // S, s
                     double x,  double y, bool rel=false);
+        void arc_to(double rx, double ry,                   // A,a
+                    double xrot,
+                    bool large_arc,
+                    bool sweep_arc,
+                    double x,
+                    double y,
+                    bool rel);
         void close_subpath();                               // Z, z
 
 //        template<class VertexSource> 

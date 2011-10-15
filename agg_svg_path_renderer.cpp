@@ -164,6 +164,19 @@ namespace svg
         }
     }
 
+    void path_renderer::arc_to(double rx, double ry,                   // A,a
+                               double xrot,
+                               bool large_arc_flag,
+                               bool sweep_flag,
+                               double x,
+                               double y,
+                               bool rel
+                               )
+    {
+        if(rel) m_storage.rel_to_abs(&x, &y);
+        m_storage.arc_to(rx,ry,xrot,large_arc_flag,sweep_flag,x,y);
+    }
+
     //------------------------------------------------------------------------
     void path_renderer::close_subpath()
     {
@@ -281,6 +294,9 @@ namespace svg
         {
             double arg[10];
             char cmd = tok.last_command();
+            if (cmd == 0)
+                cmd = 'l';
+
             unsigned i;
             switch(cmd)
             {
@@ -288,6 +304,12 @@ namespace svg
                     arg[0] = tok.last_number();
                     arg[1] = tok.next(cmd);
                     move_to(arg[0], arg[1], cmd == 'm');
+
+                    // An m command is implicitely followed by l commands
+                    if (cmd=='m')
+                        tok.set_last_command('l');
+                    else
+                        tok.set_last_command('L');
                     break;
 
                 case 'L': case 'l':
@@ -338,7 +360,12 @@ namespace svg
                     break;
 
                 case 'A': case 'a':
-                    throw exception("parse_path: Command A: NOT IMPLEMENTED YET");
+                    arg[0] = tok.last_number();
+                    for(i = 1; i < 7; i++)
+                        arg[i] = tok.next(cmd);
+                    
+                    arc_to(arg[0],arg[1],arg[2],bool(arg[3]>0),bool(arg[4]>0),arg[5],arg[6],cmd=='a');
+                    break;
 
                 case 'Z': case 'z':
                     close_subpath();

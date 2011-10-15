@@ -67,7 +67,7 @@ namespace svg
 
         char   last_command() const { return m_last_command; }
         double last_number() const { return m_last_number; }
-
+        void set_last_command(char last_command) { m_last_command = last_command; };
 
     private:
         static void init_char_mask(char* mask, const char* char_set);

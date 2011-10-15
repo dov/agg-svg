@@ -120,13 +120,13 @@ namespace svg
         char* buf_ptr = buf;
 
         // Copy all sign characters
-        while(buf_ptr < buf+255 && *m_path == '-' || *m_path == '+')
+        while((buf_ptr < buf+255 && *m_path == '-') || *m_path == '+')
         {
             *buf_ptr++ = *m_path++;
         }
 
         // Copy all numeric characters
-        while(buf_ptr < buf+255 && is_numeric(*m_path))
+        while(buf_ptr < buf+255 && (is_numeric(*m_path) || *m_path=='e' || *m_path=='E' || *m_path == '-' || *m_path == '+'))
         {
             *buf_ptr++ = *m_path++;
         }
