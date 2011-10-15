@@ -241,9 +241,9 @@ namespace svg
             if(!XML_Parse(p, m_buf, len, done))
             {
                 sprintf(msg,
-                    "%s at line %d\n",
-                    XML_ErrorString(XML_GetErrorCode(p)),
-                    XML_GetCurrentLineNumber(p));
+                        "%s at line %d\n",
+                        XML_ErrorString(XML_GetErrorCode(p)),
+                        (int)XML_GetCurrentLineNumber(p));
                 throw exception(msg);
             }
         }
@@ -425,6 +425,37 @@ namespace svg
         {
             sscanf(str + 1, "%x", &c);
             return rgb8_packed(c);
+        }
+        // parse rgb and rgba syntax
+        else if (strncmp(str,"rgb(",4)==0
+                 || strncmp(str,"rgba(",5)==0)
+        {
+            bool has_alpha = (strncmp(str,"rgba(",5)==0);
+            double num[4];
+
+            if (!has_alpha)
+                num[3] = 1.0;
+
+            str+=4 + int(has_alpha);
+
+            // extract the numbers and support % notation
+            for (int i=0; i<3+int(has_alpha); i++)
+            {
+                num[i] = atof(str);
+                while (isdigit(*str) || *str=='.')
+                    str++;
+
+                
+                if (*str=='%')
+                    num[i]*=0.01;
+                // alpha appears to be treated differently in rgba() in svg
+                else if (i<3)
+                    num[i]/= 255.0;
+
+                while (*str && !isdigit(*str))
+                    str++;
+            }
+            return rgba(num[0],num[1],num[2],num[3]);
         }
         else
         {
