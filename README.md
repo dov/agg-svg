@@ -1,6 +1,6 @@
 # agg-svg --- Extension of the agg svg parser
 
-* Author: Dov Grobgeld <dov.grobgeldr@gmail.com>
+* Author: Dov Grobgeld <dov.grobgeld@gmail.com>
 * Created: Saturday 2011-10-15 
 * Keywords: agg, svg
 * URL: <http://github.com/dov/agg-svg>
