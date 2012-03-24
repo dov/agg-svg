@@ -128,6 +128,11 @@ namespace svg
         // Copy all numeric characters
         while(buf_ptr < buf+255 && (is_numeric(*m_path) || *m_path=='e' || *m_path=='E' || *m_path == '-' || *m_path == '+'))
         {
+            if(*m_path == '-' || *m_path == '+') {
+              //check previous was 'e' or 'E'
+                if(*(buf_ptr-1) != 'e' && *(buf_ptr-1) != 'E')
+                    break;
+            }
             *buf_ptr++ = *m_path++;
         }
         *buf_ptr = 0;

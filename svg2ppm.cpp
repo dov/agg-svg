@@ -94,16 +94,16 @@ int main(int argc, char **argv)
     try {
       p.parse(svgfilename.c_str());
     }
-    catch (...) {
-      die("svg parsing error!\n");
+    catch (agg::svg::exception e) {
+      die(e.msg());
     }
     double mx,my,Mx,My;
     path.bounding_rect(&mx,&my,&Mx,&My);
-    PImg img(Mx-mx,My-my);
+    PImg img(Mx-mx+2,My-my+2);
     string outfilename(svgfilename + ".ppm");
     agg::trans_affine mtx;
     if(mx!=0 || my!=0) {
-        mtx = agg::trans_affine_translation(-mx,-my);
+        mtx = agg::trans_affine_translation(-mx+1,-my+1);
     }
 
     typedef agg::pixfmt_rgb24 pixfmt;
@@ -128,7 +128,7 @@ int main(int argc, char **argv)
                                    agg::rgba8(0xff,0xff,0xff,0xff));
     
     
-    path.render(pf, sl, ren, mtx, rbase.clip_box(), 1.0);
+    path.render(pf, sl, ren, mtx, 1.0);
 
     img.save_ppm(outfilename.c_str());
     exit(0);

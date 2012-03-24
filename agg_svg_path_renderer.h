@@ -236,12 +236,10 @@ namespace svg
                     Scanline& sl,
                     Renderer& ren, 
                     const trans_affine& mtx, 
-                    const rect_i& cb,
                     double opacity=1.0)
         {
             unsigned i;
 
-            ras.clip_box(cb.x1, cb.y1, cb.x2, cb.y2);
             m_curved_count.count(0);
 
             for(i = 0; i < m_attr_storage.size(); i++)
