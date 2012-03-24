@@ -1,2 +1,4 @@
 *.o
 /.sconsign.dblite
+/nbproject/private/
+/svg2ppm

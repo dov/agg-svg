@@ -66,8 +66,6 @@ static void die(const char *fmt, ...)
 int main(int argc, char **argv)
 {
     int argp = 1;
-    PImg img(600,400);
-    string outfilename("test.ppm");
 
     while(argp < argc && argv[argp][0] == '-') {
         char *S_ = argv[argp++];
@@ -89,6 +87,24 @@ int main(int argc, char **argv)
         die("Need svg filename!\n");
 
     string svgfilename = argv[argp++];
+    
+    // Parse and draw svg file
+    agg::svg::path_renderer path;
+    agg::svg::parser p(path);
+    try {
+      p.parse(svgfilename.c_str());
+    }
+    catch (...) {
+      die("svg parsing error!\n");
+    }
+    double mx,my,Mx,My;
+    path.bounding_rect(&mx,&my,&Mx,&My);
+    PImg img(Mx-mx,My-my);
+    string outfilename(svgfilename + ".ppm");
+    agg::trans_affine mtx;
+    if(mx!=0 || my!=0) {
+        mtx = agg::trans_affine_translation(-mx,-my);
+    }
 
     typedef agg::pixfmt_rgb24 pixfmt;
     typedef agg::renderer_base<pixfmt> renderer_base;
@@ -102,7 +118,6 @@ int main(int argc, char **argv)
     agg::rasterizer_scanline_aa<> pf;
     agg::scanline_p8 sl;
     renderer_solid ren(rbase);
-    agg::trans_affine mtx;
     
     // Draw a white background in the buffer
     pf.move_to_d(0,0);
@@ -112,15 +127,7 @@ int main(int argc, char **argv)
     agg::render_scanlines_aa_solid(pf, sl, rbase,
                                    agg::rgba8(0xff,0xff,0xff,0xff));
     
-    // Parse and draw svg file
-    agg::svg::path_renderer path;
-    agg::svg::parser p(path);
-    try {
-      p.parse(svgfilename.c_str());
-    }
-    catch (...) {
-      die("svg parsing error!\n");
-    }
+    
     path.render(pf, sl, ren, mtx, rbase.clip_box(), 1.0);
 
     img.save_ppm(outfilename.c_str());
