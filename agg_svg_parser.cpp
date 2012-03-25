@@ -672,6 +672,8 @@ namespace svg
         double y = 0.0;
         double w = 0.0;
         double h = 0.0;
+        double rx = 0.0;
+        double ry = 0.0;
 
         m_path.begin_path();
         for(i = 0; attr[i]; i += 2)
@@ -682,8 +684,8 @@ namespace svg
                 if(strcmp(attr[i], "y") == 0)      y = parse_double(attr[i + 1]);
                 if(strcmp(attr[i], "width") == 0)  w = parse_double(attr[i + 1]);
                 if(strcmp(attr[i], "height") == 0) h = parse_double(attr[i + 1]);
-                // rx - to be implemented 
-                // ry - to be implemented
+                if(strcmp(attr[i], "rx") == 0)     rx = parse_double(attr[i + 1]);
+                if(strcmp(attr[i], "ry") == 0)     ry = parse_double(attr[i + 1]);
             }
         }
 
@@ -692,12 +694,16 @@ namespace svg
         {
             if(w < 0.0) throw exception("parse_rect: Invalid width: %f", w);
             if(h < 0.0) throw exception("parse_rect: Invalid height: %f", h);
-
-            m_path.move_to(x,     y);
-            m_path.line_to(x + w, y);
-            m_path.line_to(x + w, y + h);
-            m_path.line_to(x,     y + h);
-            m_path.close_subpath();
+            if(rx>0 || ry>0) {
+                agg::rounded_rect rrect(x,y,x+w,y+h,rx>ry?rx:ry);
+                m_path.concat_path(rrect);
+            } else {
+               m_path.move_to(x,     y);
+               m_path.line_to(x + w, y);
+               m_path.line_to(x + w, y + h);
+               m_path.line_to(x,     y + h);
+               m_path.close_subpath();
+            }
         }
         m_path.end_path();
     }

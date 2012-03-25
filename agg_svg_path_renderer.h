@@ -28,6 +28,7 @@
 #include "agg_renderer_scanline.h"
 #include "agg_bounding_rect.h"
 #include "agg_ellipse.h"
+#include "agg_rounded_rect.h"
 #include "agg_rasterizer_scanline_aa.h"
 #include "agg_svg_path_tokenizer.h"
 
