@@ -423,8 +423,18 @@ namespace svg
         unsigned c = 0;
         if(*str == '#')
         {
-            sscanf(str + 1, "%x", &c);
-            return rgb8_packed(c);
+            char newclr[7];
+            if(strlen(str+1) == 3) {
+                newclr[0]=newclr[1]=*(str+1);
+                newclr[2]=newclr[3]=*(str+2);
+                newclr[4]=newclr[5]=*(str+3);
+                newclr[6] = 0;
+                sscanf(newclr, "%x", &c);
+                return rgb8_packed(c);
+            } else {
+               sscanf(str + 1, "%x", &c);
+               return rgb8_packed(c);
+            }
         }
         // parse rgb and rgba syntax
         else if (strncmp(str,"rgb(",4)==0
