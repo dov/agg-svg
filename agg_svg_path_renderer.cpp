@@ -78,8 +78,9 @@ namespace svg
            double x2,y2;
            unsigned cmd = m_storage.last_vertex(&x2,&y2);
            if(is_end_poly(cmd)) {
-               unsigned idx = m_storage.total_vertices()-2;
-               while(idx && is_end_poly(m_storage.vertex(--idx,&x2,&y2)));
+               // rewind until we find a real vertex
+               unsigned idx = m_storage.total_vertices()-1;
+               while(idx && !is_vertex(m_storage.vertex(--idx,&x2,&y2)));
            }
            x += x2;
            y += y2;
