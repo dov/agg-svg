@@ -74,7 +74,16 @@ namespace svg
     //------------------------------------------------------------------------
     void path_renderer::move_to(double x, double y, bool rel)          // M, m
     {
-        if(rel) m_storage.rel_to_abs(&x, &y);
+        if(rel) {
+           double x2,y2;
+           unsigned cmd = m_storage.last_vertex(&x2,&y2);
+           if(is_end_poly(cmd)) {
+               unsigned idx = m_storage.total_vertices()-2;
+               while(idx && is_end_poly(m_storage.vertex(--idx,&x2,&y2)));
+           }
+           x += x2;
+           y += y2;
+        }
         m_storage.move_to(x, y);
     }
 
