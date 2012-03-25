@@ -293,6 +293,11 @@ namespace svg
             self.parse_rect(attr);
         }
         else
+        if(strcmp(el, "circle") == 0) 
+        {
+            self.parse_circle(attr);
+        }
+        else
         if(strcmp(el, "line") == 0) 
         {
             self.parse_line(attr);
@@ -697,6 +702,28 @@ namespace svg
         m_path.end_path();
     }
 
+    //-------------------------------------------------------------
+    void parser::parse_circle(const char** attr)
+    {
+        int i;
+        double x0 = 0.0;
+        double y0 = 0.0;
+        double radius = 0.0;
+
+        m_path.begin_path();
+        for(i = 0; attr[i]; i += 2)
+        {
+            if(!parse_attr(attr[i], attr[i + 1]))
+            {
+                if(strcmp(attr[i], "cx") == 0) x0 = parse_double(attr[i + 1]);
+                if(strcmp(attr[i], "cy") == 0) y0 = parse_double(attr[i + 1]);
+                if(strcmp(attr[i], "r") == 0) radius = parse_double(attr[i + 1]);
+            }
+        }
+        agg::ellipse ellipse(x0,y0,radius,radius);
+        m_path.concat_path(ellipse);
+        m_path.end_path();
+    }
 
     //-------------------------------------------------------------
     void parser::parse_line(const char** attr)

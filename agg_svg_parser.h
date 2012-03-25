@@ -49,6 +49,7 @@ namespace svg
         void parse_path(const char** attr);
         void parse_poly(const char** attr, bool close_flag);
         void parse_rect(const char** attr);
+        void parse_circle(const char** attr);
         void parse_line(const char** attr);
         void parse_style(const char* str);
         void parse_transform(const char* str);

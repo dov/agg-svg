@@ -27,6 +27,7 @@
 #include "agg_color_rgba.h"
 #include "agg_renderer_scanline.h"
 #include "agg_bounding_rect.h"
+#include "agg_ellipse.h"
 #include "agg_rasterizer_scanline_aa.h"
 #include "agg_svg_path_tokenizer.h"
 
@@ -172,6 +173,11 @@ namespace svg
                     double x,
                     double y,
                     bool rel);
+        template<class VertexSource>
+        void concat_path(VertexSource &vs)
+        {
+            m_storage.concat_path(vs);
+        }
         void close_subpath();                               // Z, z
 
 //        template<class VertexSource> 
