@@ -266,6 +266,11 @@ namespace svg
     {
         cur_attr().fill_color.opacity(op);
     }
+    
+    void path_renderer::opacity(double op)
+    {
+        cur_attr().opacity = op;
+    }
 
     //------------------------------------------------------------------------
     void path_renderer::stroke_opacity(double op)

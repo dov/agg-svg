@@ -528,6 +528,11 @@ namespace svg
             m_path.fill_opacity(parse_double(value));
         }
         else
+        if(strcmp(name, "opacity") == 0)
+        {
+            m_path.opacity(parse_double(value));
+        }
+        else
         if(strcmp(name, "stroke") == 0)
         {
             if(strcmp(value, "none") == 0)

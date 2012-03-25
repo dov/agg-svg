@@ -66,6 +66,7 @@ namespace svg
         unsigned     index;
         rgba8        fill_color;
         rgba8        stroke_color;
+        double       opacity;
         bool         fill_flag;
         bool         stroke_flag;
         bool         even_odd_flag;
@@ -80,6 +81,7 @@ namespace svg
             index(0),
             fill_color(rgba(0,0,0)),
             stroke_color(rgba(0,0,0)),
+            opacity(1.0),
             fill_flag(true),
             stroke_flag(false),
             even_odd_flag(false),
@@ -94,6 +96,7 @@ namespace svg
         // Copy constructor
         path_attributes(const path_attributes& attr) :
             index(attr.index),
+            opacity(attr.opacity),
             fill_color(attr.fill_color),
             stroke_color(attr.stroke_color),
             fill_flag(attr.fill_flag),
@@ -204,6 +207,7 @@ namespace svg
         void stroke_width(double w);
         void fill_none();
         void stroke_none();
+        void opacity(double op);
         void fill_opacity(double op);
         void stroke_opacity(double op);
         void line_join(line_join_e join);
@@ -276,7 +280,7 @@ namespace svg
                     }
 
                     color = attr.fill_color;
-                    color.opacity(color.opacity() * opacity);
+                    color.opacity(color.opacity() * opacity * attr.opacity);
                     ren.color(color);
                     agg::render_scanlines(ras, sl, ren);
                 }
@@ -302,7 +306,7 @@ namespace svg
                     ras.filling_rule(fill_non_zero);
                     ras.add_path(m_curved_stroked_trans, attr.index);
                     color = attr.stroke_color;
-                    color.opacity(color.opacity() * opacity);
+                    color.opacity(color.opacity() * opacity * attr.opacity);
                     ren.color(color);
                     agg::render_scanlines(ras, sl, ren);
                 }
