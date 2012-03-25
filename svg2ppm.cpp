@@ -99,12 +99,9 @@ int main(int argc, char **argv)
     }
     double mx,my,Mx,My;
     path.bounding_rect(&mx,&my,&Mx,&My);
-    PImg img(Mx-mx+2,My-my+2);
+    PImg img(Mx+1,My+1);
     string outfilename(svgfilename + ".ppm");
     agg::trans_affine mtx;
-    if(mx!=0 || my!=0) {
-        mtx = agg::trans_affine_translation(-mx+1,-my+1);
-    }
 
     typedef agg::pixfmt_rgb24 pixfmt;
     typedef agg::renderer_base<pixfmt> renderer_base;
