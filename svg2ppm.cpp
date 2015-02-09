@@ -22,6 +22,15 @@ using namespace std;
 
 typedef unsigned char u8;
 
+static void die(const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap,fmt); 
+    
+    vfprintf(stderr, fmt, ap);
+    exit(-1);
+}
+
 // An ppm image
 class PImg {
   public:
@@ -37,6 +46,10 @@ class PImg {
     void save_ppm(const char *filename)
     {
       FILE *fh = fopen(filename, "wb");
+      if (!fh) {
+        fprintf(stderr, "Failed opening %s for writing!\n", filename);
+        exit(-1);
+      }
       fprintf(fh,
               "P6\n"
               "# By svg2ppm.cpp\n"
@@ -52,20 +65,13 @@ class PImg {
 };
 
 
-static void die(const char *fmt, ...)
-{
-    va_list ap;
-    va_start(ap,fmt); 
-    
-    vfprintf(stderr, fmt, ap);
-    exit(-1);
-}
-
 #define CASE(s) if (!strcmp(s, S_))
 
 int main(int argc, char **argv)
 {
     int argp = 1;
+    string outfilename;
+    bool do_bgr = false;
 
     while(argp < argc && argv[argp][0] == '-') {
         char *S_ = argv[argp++];
@@ -73,12 +79,22 @@ int main(int argc, char **argv)
         CASE("-help") {
             printf("svg2ppm - A testing program for agg-svg \n\n"
                    "Syntax:\n"
-                   "    agg-svg [] ...\n"
+                   "    agg-svg [] svg-file\n"
                    "\n"
                    "Options:\n"
-                   "    -x x    Foo\n"
+                   "    -o outfilename   Set outfilename\n"
+                   "    -bgr             Set bgr output mode\n"
+                   
                    );
             exit(0);
+        }
+        CASE("-o") {
+            outfilename = argv[argp++];
+            continue;
+        }
+        CASE("-bgr") {
+            do_bgr = true;
+            continue;
         }
         die("Unknown option %s!\n", S_);
     }
@@ -91,6 +107,8 @@ int main(int argc, char **argv)
     // Parse and draw svg file
     agg::svg::path_renderer path;
     agg::svg::parser p(path);
+    p.set_swap_red_blue(do_bgr);
+
     try {
       p.parse(svgfilename.c_str());
     }
@@ -100,7 +118,8 @@ int main(int argc, char **argv)
     double mx,my,Mx,My;
     path.bounding_rect(&mx,&my,&Mx,&My);
     PImg img(Mx+1,My+1);
-    string outfilename(svgfilename + ".ppm");
+    if (outfilename.size() == 0)
+      outfilename = svgfilename + ".ppm";
     agg::trans_affine mtx;
 
     typedef agg::pixfmt_rgb24 pixfmt;

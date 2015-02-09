@@ -38,6 +38,7 @@ namespace svg
 
         void parse(const char* fname);
         const char* title() const { return m_title; }
+        void set_swap_red_blue(bool swap_red_blue);
 
     private:
         // XML event handlers
@@ -78,6 +79,7 @@ namespace svg
         char*          m_attr_value;
         unsigned       m_attr_name_len;
         unsigned       m_attr_value_len;
+        bool           m_swap_red_blue;
     };
 
 }

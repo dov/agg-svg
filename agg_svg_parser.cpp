@@ -207,7 +207,8 @@ namespace svg
         m_attr_name(new char[128]),
         m_attr_value(new char[1024]),
         m_attr_name_len(127),
-        m_attr_value_len(1023)
+        m_attr_value_len(1023),
+        m_swap_red_blue(false)
     {
         m_title[0] = 0;
     }
@@ -422,7 +423,7 @@ namespace svg
     }
 
     //-------------------------------------------------------------
-    rgba8 parse_color(const char* str)
+    rgba8 parse_color(const char* str, bool swap_red_blue)
     {
         while(*str == ' ') ++str;
         unsigned c = 0;
@@ -435,9 +436,13 @@ namespace svg
                 newclr[4]=newclr[5]=*(str+3);
                 newclr[6] = 0;
                 sscanf(newclr, "%x", &c);
+                if (swap_red_blue)
+                    return bgr8_packed(c);
                 return rgb8_packed(c);
             } else {
                sscanf(str + 1, "%x", &c);
+               if (swap_red_blue)
+                 return bgr8_packed(c);
                return rgb8_packed(c);
             }
         }
@@ -470,6 +475,8 @@ namespace svg
                 while (*str && !isdigit(*str))
                     str++;
             }
+            if (swap_red_blue)
+                return rgba(num[2],num[1],num[0],num[3]);
             return rgba(num[0],num[1],num[2],num[3]);
         }
         else
@@ -491,6 +498,8 @@ namespace svg
                 throw exception("parse_color: Invalid color name '%s'", str);
             }
             const named_color* pc = (const named_color*)p;
+            if (swap_red_blue)
+                return rgba8(pc->b, pc->g, pc->r, pc->a);
             return rgba8(pc->r, pc->g, pc->b, pc->a);
         }
     }
@@ -519,7 +528,7 @@ namespace svg
             }
             else
             {
-                m_path.fill(parse_color(value));
+                m_path.fill(parse_color(value,m_swap_red_blue));
             }
         }
         else
@@ -541,7 +550,7 @@ namespace svg
             }
             else
             {
-                m_path.stroke(parse_color(value));
+                m_path.stroke(parse_color(value,m_swap_red_blue));
             }
         }
         else
@@ -622,6 +631,11 @@ namespace svg
         m_attr_value[len] = 0;
     }
 
+    //-------------------------------------------------------------
+    void parser::set_swap_red_blue(bool swap_red_blue)
+    {
+        m_swap_red_blue = swap_red_blue;
+    }
 
     //-------------------------------------------------------------
     bool parser::parse_name_value(const char* nv_start, const char* nv_end)
