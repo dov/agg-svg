@@ -115,6 +115,9 @@ int main(int argc, char **argv)
     catch (agg::svg::exception e) {
       die(e.msg());
     }
+    printf("width height in mm = %f %f\n", p.width_in_mm(), p.height_in_mm());
+    const double *view_box = p.view_box();
+    printf("view_box = %f %f %f %f\n", view_box[0],view_box[1],view_box[2],view_box[3]);
     double mx,my,Mx,My;
     path.bounding_rect(&mx,&my,&Mx,&My);
     PImg img(Mx+1,My+1);

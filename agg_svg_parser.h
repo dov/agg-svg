@@ -39,6 +39,9 @@ namespace svg
         void parse(const char* fname);
         const char* title() const { return m_title; }
         void set_swap_red_blue(bool swap_red_blue);
+        const double *view_box() const { return m_view_box; };
+        double width_in_mm() const { return m_width_in_mm; };
+        double height_in_mm() const { return m_height_in_mm; };
 
     private:
         // XML event handlers
@@ -47,6 +50,7 @@ namespace svg
         static void content(void* data, const char* s, int len);
 
         void parse_attr(const char** attr);
+        void parse_svg(const char** attr);
         void parse_path(const char** attr);
         void parse_poly(const char** attr, bool close_flag);
         void parse_rect(const char** attr);
@@ -61,6 +65,8 @@ namespace svg
         unsigned parse_scale(const char* str);
         unsigned parse_skew_x(const char* str);
         unsigned parse_skew_y(const char* str);
+        double parse_distance_to_mm(const char *str);
+        void parse_view_box(const char *str, double *vbox);
         
         bool parse_attr(const char* name, const char* value);
         bool parse_name_value(const char* nv_start, const char* nv_end);
@@ -80,6 +86,9 @@ namespace svg
         unsigned       m_attr_name_len;
         unsigned       m_attr_value_len;
         bool           m_swap_red_blue;
+        double         m_width_in_mm;
+        double         m_height_in_mm;
+        double         m_view_box[4];
     };
 
 }

@@ -208,9 +208,13 @@ namespace svg
         m_attr_value(new char[1024]),
         m_attr_name_len(127),
         m_attr_value_len(1023),
-        m_swap_red_blue(false)
+        m_swap_red_blue(false),
+        m_width_in_mm(-1),
+        m_height_in_mm(-1)
     {
         m_title[0] = 0;
+        for (int i=0; i<4; i++)
+            m_view_box[i] = -1;
     }
 
     //------------------------------------------------------------------------
@@ -269,6 +273,11 @@ namespace svg
         if(strcmp(el, "title") == 0)
         {
             self.m_title_flag = true;
+        }
+        else
+        if(strcmp(el, "svg") == 0)
+        {
+            self.parse_svg(attr);
         }
         else
         if(strcmp(el, "g") == 0)
@@ -367,6 +376,86 @@ namespace svg
         }
     }
 
+
+    //------------------------------------------------------------------------
+    void parser::parse_svg(const char** attr)
+    {
+        int i;
+        for(i = 0; attr[i]; i += 2)
+        {
+            if (strcmp(attr[i], "width")==0)
+                m_width_in_mm = parse_distance_to_mm(attr[i+1]);;
+            if (strcmp(attr[i], "height")==0)
+                m_height_in_mm = parse_distance_to_mm(attr[i+1]);;
+            if (strcmp(attr[i], "viewBox")==0)
+                parse_view_box(attr[i+1], m_view_box);
+        }
+    }
+
+    //-------------------------------------------------------------
+    static bool is_numeric(char c)
+    {
+        return c!=0 && strchr("0123456789+-.eE", c) != 0;
+    }
+
+    double parser::parse_distance_to_mm(const char *distance_string)
+    {
+        // parse under the assumption that the number may only
+        // contain digits and decimal point.
+        const char *p = distance_string;
+        while(*p == ' ')
+            p++;
+        const char *start_pos = p;
+        while(is_numeric(*p) || *p=='.')
+            p++;
+        const char * end_pos=p;
+        double distance = strtod(start_pos, (char**)&end_pos);
+        // Get the unit
+        while(*p == ' ')
+            p++;
+        double multiplier = 1.0;
+
+        // Treat all these as a point
+        if (strlen(p)==0
+            || strcmp(p,"px")==0
+            || strcmp(p,"pt")==0
+            // The following three don't have an absolute meaning
+            || strcmp(p,"%")==0
+            || strcmp(p,"em")==0
+            || strcmp(p,"ex")==0
+            )
+            multiplier = 0.35277778;
+        else if (strcmp(p, "pc")==0)
+            multiplier = 4.2175176;
+        else if (strcmp(p, "cm")==0)
+            multiplier = 10.;
+        else if (strcmp(p, "m")==0)
+            multiplier = 1000.;
+        else if (strcmp(p, "in")==0)
+            multiplier = 25.4;
+
+        return distance * multiplier;
+    }
+
+    void parser::parse_view_box(const char *str,
+                                  // output
+                                  double *vbox
+                                  )
+    {
+        const char *p=str;
+        for (int i=0; i<4; i++) {
+            if (!(is_numeric(*p) || *p=='-' || *p=='.'))
+                throw exception("parse_view_box: Malformatted viewbox: %s",str);
+
+            vbox[i] = atof(p);
+            if (i==3)
+                break;
+            while(*p && *p != ' ')
+                ++p;
+            while(*p == ' ')
+                ++p;
+        }
+    }
 
     //------------------------------------------------------------------------
     void parser::parse_attr(const char** attr)
@@ -847,12 +936,6 @@ namespace svg
         }
     }
 
-
-    //-------------------------------------------------------------
-    static bool is_numeric(char c)
-    {
-        return strchr("0123456789+-.eE", c) != 0;
-    }
 
     //-------------------------------------------------------------
     static unsigned parse_transform_args(const char* str, 
