@@ -265,6 +265,31 @@ namespace svg
     }
 
 
+    void parser::parse_string(const char* svg_string)
+    {
+        char msg[1024];
+        XML_Parser p = XML_ParserCreate(NULL);
+        if(p == 0) 
+        {
+            throw exception("Couldn't allocate memory for parser");
+        }
+
+        XML_SetUserData(p, this);
+        XML_SetElementHandler(p, start_element, end_element);
+        XML_SetCharacterDataHandler(p, content);
+
+        size_t len = strlen(svg_string);
+        if(!XML_Parse(p, svg_string, len, true))
+        {
+          sprintf(msg,
+                  "%s at line %d\n",
+                  XML_ErrorString(XML_GetErrorCode(p)),
+                  (int)XML_GetCurrentLineNumber(p));
+          throw exception(msg);
+        }
+        XML_ParserFree(p);
+    }
+
     //------------------------------------------------------------------------
     void parser::start_element(void* data, const char* el, const char** attr)
     {

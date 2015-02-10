@@ -1,5 +1,4 @@
-# A SConstruct for my Fedora 15 box
-
+# A SConstruct for my Fedora 21 box
 env = Environment(CPPFLAGS=['-g','-Wall','-Wno-reorder'],
                   CPPPATH=['/usr/include/agg2'],
                   LIBS=['agg','expat'])

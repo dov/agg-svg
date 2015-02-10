@@ -145,6 +145,30 @@ namespace svg
         typedef conv_contour<curved_trans>     curved_trans_contour;
     
         path_renderer();
+        path_renderer(const path_renderer& other) :
+          m_storage(other.m_storage),
+          m_attr_storage(other.m_attr_storage),
+          m_attr_stack(other.m_attr_stack),
+          m_transform(other.m_transform),
+
+          m_curved(m_storage),
+          m_curved_count(m_curved),
+  
+          m_curved_stroked(m_curved_count),
+          m_curved_stroked_trans(m_curved_stroked, m_transform),
+  
+          m_curved_trans(m_curved_count, m_transform),
+          m_curved_trans_contour(m_curved_trans) { }
+
+        const path_renderer& operator=(const path_renderer& other)
+        {
+            m_storage = other.m_storage;
+            m_attr_storage = other.m_attr_storage;
+            m_attr_stack = other.m_attr_stack;
+            m_transform = other.m_transform; 
+
+            return *this;
+        }
 
         void remove_all();
 

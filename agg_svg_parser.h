@@ -37,6 +37,7 @@ namespace svg
         parser(path_renderer& path);
 
         void parse(const char* fname);
+        void parse_string(const char* svg_string);
         const char* title() const { return m_title; }
         void set_swap_red_blue(bool swap_red_blue);
         const double *view_box() const { return m_view_box; };
