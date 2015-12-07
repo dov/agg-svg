@@ -36,6 +36,26 @@ namespace agg
 {
 namespace svg
 {
+    inline rgba8 modify_color(const rgba8& color, double gain, double offset)
+    {
+      double rr = gain * color.r + offset;
+      if (rr < 0)
+        rr = 0;
+      if (rr > 255)
+        rr = 255;
+      double gg = gain * color.g + offset;
+      if (gg < 0)
+        gg = 0;
+      if (gg > 255)
+        gg = 255;
+      double bb = gain * color.b + offset;
+      if (bb < 0)
+        bb = 0;
+      if (bb > 255)
+        bb = 255;
+      return rgba8(int(rr),int(gg),int(bb),color.a);
+    }
+
     template<class VertexSource> class conv_count
     {
     public:
@@ -96,9 +116,9 @@ namespace svg
         // Copy constructor
         path_attributes(const path_attributes& attr) :
             index(attr.index),
-            opacity(attr.opacity),
             fill_color(attr.fill_color),
             stroke_color(attr.stroke_color),
+            opacity(attr.opacity),
             fill_flag(attr.fill_flag),
             stroke_flag(attr.stroke_flag),
             even_odd_flag(attr.even_odd_flag),
@@ -150,6 +170,7 @@ namespace svg
           m_attr_storage(other.m_attr_storage),
           m_attr_stack(other.m_attr_stack),
           m_transform(other.m_transform),
+          m_user_transform(other.m_user_transform),
 
           m_curved(m_storage),
           m_curved_count(m_curved),
@@ -166,6 +187,7 @@ namespace svg
             m_attr_storage = other.m_attr_storage;
             m_attr_stack = other.m_attr_stack;
             m_transform = other.m_transform; 
+            m_user_transform = other.m_user_transform;
 
             return *this;
         }
@@ -271,17 +293,23 @@ namespace svg
                     Scanline& sl,
                     Renderer& ren, 
                     const trans_affine& mtx, 
-                    double opacity=1.0)
+                    const rect_i& cb, // clipbox
+                    double opacity=1.0,
+                    double color_multiplier=1.0,
+                    double color_offset=1.0)
         {
             unsigned i;
 
+            ras.clip_box(cb.x1, cb.y1, cb.x2, cb.y2);
             m_curved_count.count(0);
+            trans_affine umtx = m_user_transform;
+            umtx *= mtx;
 
             for(i = 0; i < m_attr_storage.size(); i++)
             {
                 const path_attributes& attr = m_attr_storage[i];
                 m_transform = attr.transform;
-                m_transform *= mtx;
+                m_transform *= umtx;
                 double scl = m_transform.scale();
                 //m_curved.approximation_method(curve_inc);
                 m_curved.approximation_scale(scl);
@@ -303,8 +331,12 @@ namespace svg
                         ras.add_path(m_curved_trans_contour, attr.index);
                     }
 
-                    color = attr.fill_color;
-                    color.opacity(color.opacity() * opacity * attr.opacity);
+                    if (color_multiplier != 1.0)
+                      color = modify_color(attr.fill_color, color_multiplier, color_offset);
+                    else
+                      color = attr.fill_color;
+
+                    color.opacity(color.opacity() * opacity);
                     ren.color(color);
                     agg::render_scanlines(ras, sl, ren);
                 }
@@ -329,12 +361,40 @@ namespace svg
                     ras.reset();
                     ras.filling_rule(fill_non_zero);
                     ras.add_path(m_curved_stroked_trans, attr.index);
-                    color = attr.stroke_color;
-                    color.opacity(color.opacity() * opacity * attr.opacity);
+                    if (color_multiplier != 1.0)
+                      color = modify_color(attr.stroke_color, color_multiplier, color_offset);
+                    else
+                      color = attr.stroke_color;
+                    color.opacity(color.opacity() * opacity);
                     ren.color(color);
                     agg::render_scanlines(ras, sl, ren);
                 }
             }
+        }
+
+        void transform(trans_affine transform)
+        {
+            m_user_transform = transform * m_user_transform;
+        }
+
+        void pre_transform(trans_affine transform)
+        {
+            m_user_transform = m_user_transform * transform;
+        }
+
+        void reset_transform()
+        {
+            m_user_transform = trans_affine();
+        }
+
+        bool empty() const
+        {
+            return m_attr_storage.size()==0;
+        }
+
+        trans_affine get_transform() const
+        {
+            return m_user_transform;
         }
 
     private:
@@ -344,6 +404,7 @@ namespace svg
         attr_storage   m_attr_storage;
         attr_storage   m_attr_stack;
         trans_affine   m_transform;
+        trans_affine   m_user_transform;
 
         curved                       m_curved;
         curved_count                 m_curved_count;
