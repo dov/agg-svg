@@ -859,8 +859,17 @@ namespace svg
                 if(strcmp(attr[i], "r") == 0) radius = parse_double(attr[i + 1]);
             }
         }
-        agg::ellipse ellipse(x0,y0,radius,radius);
-        m_path.concat_path(ellipse);
+
+        // Make a bezier approximation. See: http://spencermortensen.com/articles/bezier-circle/
+        double c =  0.55191502449*radius;
+        double r = radius;
+        m_path.move_to(x0,y0+r);
+        m_path.curve4(x0+c,y0+r,  x0+r,y0+c,  x0+r,y0);
+        m_path.curve4(x0+r,y0-c,  x0+c,y0-r,  x0,y0-r);
+        m_path.curve4(x0-c,y0-r,  x0-r,y0-c,  x0-r,y0);
+        m_path.curve4(x0-r,y0+c,  x0-c,y0+r,  x0,y0+r);
+        //        agg::ellipse ellipse(x0,y0,radius,radius);
+        //        m_path.concat_path(ellipse);
         m_path.end_path();
     }
 
