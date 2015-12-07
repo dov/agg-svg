@@ -39,6 +39,7 @@ namespace svg
         void parse(const char* fname);
         void parse_string(const char* svg_string);
         const char* title() const { return m_title; }
+        bool tags_ignored() const { return m_tags_ignored; }
         void set_swap_red_blue(bool swap_red_blue);
         const double *view_box() const { return m_view_box; };
         double width_in_mm() const { return m_width_in_mm; };
@@ -50,22 +51,25 @@ namespace svg
         static void end_element(void* data, const char* el);
         static void content(void* data, const char* s, int len);
 
-        void parse_attr(const char** attr);
         void parse_svg(const char** attr);
+        void parse_attr(const char** attr);
         void parse_path(const char** attr);
         void parse_poly(const char** attr, bool close_flag);
         void parse_rect(const char** attr);
         void parse_circle(const char** attr);
+        void parse_ellipse(const char** attr);
         void parse_line(const char** attr);
         void parse_style(const char* str);
-        void parse_transform(const char* str);
+        trans_affine parse_transform(const char* str);
+        void parse_gradient(const char** attr, bool radial);
+        void parse_gradient_stop(const char** attr);
 
-        unsigned parse_matrix(const char* str);
-        unsigned parse_translate(const char* str);
-        unsigned parse_rotate(const char* str);
-        unsigned parse_scale(const char* str);
-        unsigned parse_skew_x(const char* str);
-        unsigned parse_skew_y(const char* str);
+        unsigned parse_matrix(const char* str, trans_affine& transform);
+        unsigned parse_translate(const char* str, trans_affine& transform);
+        unsigned parse_rotate(const char* str, trans_affine& transform);
+        unsigned parse_scale(const char* str, trans_affine& transform);
+        unsigned parse_skew_x(const char* str, trans_affine& transform);
+        unsigned parse_skew_y(const char* str, trans_affine& transform);
         double parse_distance_to_mm(const char *str);
         void parse_view_box(const char *str, double *vbox);
         
@@ -86,6 +90,8 @@ namespace svg
         char*          m_attr_value;
         unsigned       m_attr_name_len;
         unsigned       m_attr_value_len;
+        rgba8          m_gradient_stop_color;
+        bool           m_tags_ignored;
         bool           m_swap_red_blue;
         double         m_width_in_mm;
         double         m_height_in_mm;

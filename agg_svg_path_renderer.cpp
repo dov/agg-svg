@@ -12,6 +12,20 @@
 //          mcseemagg@yahoo.com
 //          http://www.antigrain.com
 //----------------------------------------------------------------------------
+// Gunnar Roth: add support for linear and radial gradients(support xlink attr),
+// shape gradient opaqueness, rounded rects, circles,ellipses. support a command (arc)  in pathes. 
+// set new origin correctly to last postion on z command in a path( was set to 0,0 before).
+// enable parsing of colors written as rgb()
+// some code was inspired by code from Haiku OS
+/*
+* Copyright 2006-2007, Haiku. All rights reserved.
+* Distributed under the terms of the MIT License.
+*
+* Authors:
+* Stephan Aßmus <superstippi@gmx.de>
+*/
+//----------------------------------------------------------------------------
+//
 //
 // SVG path renderer.
 //
@@ -27,6 +41,7 @@ namespace svg
 
     //------------------------------------------------------------------------
     path_renderer::path_renderer() :
+        m_cur_gradient(NULL),
         m_curved(m_storage),
         m_curved_count(m_curved),
 
@@ -187,6 +202,20 @@ namespace svg
         m_storage.arc_to(rx,ry,xrot,large_arc_flag,sweep_flag,x,y);
     }
 
+    // elliptical_arc
+    void
+    path_renderer::elliptical_arc(double rx, double ry, double angle,
+                                  bool large_arc_flag, bool sweep_flag,
+                                  double x, double y, bool rel)
+    {
+        angle = angle / 180.0 * pi;
+        if (rel) {
+            m_storage.arc_rel(rx, ry, angle, large_arc_flag, sweep_flag, x, y);
+        } else {
+            m_storage.arc_to(rx, ry, angle, large_arc_flag, sweep_flag, x, y);
+        }
+    }
+
     //------------------------------------------------------------------------
     void path_renderer::close_subpath()
     {
@@ -255,23 +284,38 @@ namespace svg
         cur_attr().fill_flag = false;
     }
 
+    // fill_url
+    void path_renderer::fill_url(const char* url)
+    {
+        sprintf(cur_attr().fill_url, "%s", url);
+    }
+
     //------------------------------------------------------------------------
     void path_renderer::stroke_none()
     {
         cur_attr().stroke_flag = false;
     }
 
+    // stroke_url
+    void
+    path_renderer::stroke_url(const char* url)
+    {
+        sprintf(cur_attr().stroke_url, "%s", url);
+    }
+    
+    // opacity
+    void
+    path_renderer::opacity(double op)
+    {
+        cur_attr().opacity *= op;
+    }
+    
     //------------------------------------------------------------------------
     void path_renderer::fill_opacity(double op)
     {
         cur_attr().fill_color.opacity(op);
     }
     
-    void path_renderer::opacity(double op)
-    {
-        cur_attr().opacity = op;
-    }
-
     //------------------------------------------------------------------------
     void path_renderer::stroke_opacity(double op)
     {
@@ -305,6 +349,7 @@ namespace svg
     //------------------------------------------------------------------------
     void path_renderer::parse_path(path_tokenizer& tok)
     {
+        char lastCmd = 0;
         while(tok.next())
         {
             double arg[10];
@@ -318,7 +363,10 @@ namespace svg
                 case 'M': case 'm':
                     arg[0] = tok.last_number();
                     arg[1] = tok.next(cmd);
-                    move_to(arg[0], arg[1], cmd == 'm');
+                    if (lastCmd != cmd)
+                      move_to(arg[0], arg[1], cmd == 'm');
+                    else
+                      line_to(arg[0], arg[1], lastCmd == 'm');
 
                     // An m command is implicitely followed by l commands
                     if (cmd=='m')
@@ -374,16 +422,28 @@ namespace svg
                     curve4(arg[0], arg[1], arg[2], arg[3], cmd == 's');
                     break;
 
-                case 'A': case 'a':
+                case 'A': case 'a': {
                     arg[0] = tok.last_number();
-                    for(i = 1; i < 7; i++)
-                        arg[i] = tok.next(cmd);
-                    
-                    arc_to(arg[0],arg[1],arg[2],bool(arg[3]>0),bool(arg[4]>0),arg[5],arg[6],cmd=='a');
+                    for(i = 1; i < 3; i++) {
+                      arg[i] = tok.next(cmd);
+                    }
+					bool large_arc_flag = tok.next(cmd) ? true : false;
+					bool sweep_flag = tok.next(cmd) ? true : false;
+                    for(i = 3; i < 5; i++) {
+                       arg[i] = tok.next(cmd);
+                    }
+                    elliptical_arc(arg[0], arg[1], arg[2],
+                                    large_arc_flag, sweep_flag,
+                                    arg[3], arg[4], cmd == 'a');
                     break;
-
+                    }
                 case 'Z': case 'z':
-                    close_subpath();
+                    {
+                        double x = m_storage.last_x();
+                        double y = m_storage.last_y();
+                        close_subpath();
+                        move_to(x,y,false);
+                    }
                     break;
 
                 default:
@@ -393,9 +453,66 @@ namespace svg
                     throw exception(buf);
                 }
             }
+            lastCmd = cmd;
+        }
+    }
+    
+    void path_renderer::start_gradient(bool radial)
+    {
+        if (m_cur_gradient) {
+            fprintf(stderr, "path_renderer::StartGradient() - ERROR: "
+                "previous gradient (%s) not finished!\n",
+                m_cur_gradient->id());
+        }
+
+        if (radial)
+            m_cur_gradient = new radial_gradient();
+        else
+            m_cur_gradient = new linear_gradient();
+
+        add_gradient(m_cur_gradient);
+    }
+
+
+    void path_renderer::end_gradient()
+    {
+        if (m_cur_gradient) {
+            m_cur_gradient->realize();
+        } else {
+            fprintf(stderr, "path_renderer::EndGradient() - "
+                "ERROR: no gradient started!\n");
+        }
+        m_cur_gradient = NULL;
+    }
+
+    // #pragma mark -
+
+    // _AddGradient
+    void
+    path_renderer::add_gradient(gradient* gradient)
+    {
+        if (gradient) {
+            m_gradients.push_back(gradient);
         }
     }
 
+    // _GradientAt
+    gradient*
+    path_renderer::gradient_at(int32 index) const
+    {
+        return m_gradients.at(index);
+    }
+
+    // _FindGradient
+    gradient*
+    path_renderer::find_gradient(const char* name) const
+    {
+        for (int32 i = 0; gradient* g = gradient_at(i); i++) {
+            if (strcmp(g->id(), name) == 0)
+                return g;
+        }
+        return NULL;
+    }
 }
 }
 

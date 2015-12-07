@@ -8,6 +8,7 @@ env.Program('svg2ppm',
              'agg_svg_parser.cpp',
              'agg_svg_path_renderer.cpp',
              'agg_svg_path_tokenizer.cpp',
+             'agg_svg_gradient.cpp'
              ])
 
 

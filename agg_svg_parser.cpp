@@ -13,6 +13,20 @@
 //          http://www.antigrain.com
 //----------------------------------------------------------------------------
 //
+// Gunnar Roth: add support for linear and radial gradients(support xlink attr),
+// shape gradient opaqueness, rounded rects, circles,ellipses. support a command (arc)  in pathes. 
+// set new origin correctly to last postion on z command in a path( was set to 0,0 before).
+// enable parsing of colors written as rgb()
+// some code was inspired by code from Haiku OS
+/*
+ * Copyright 2006-2007, Haiku. All rights reserved.
+ * Distributed under the terms of the MIT License.
+ *
+ * Authors:
+ * Stephan Aßmus <superstippi@gmx.de>
+ */
+//----------------------------------------------------------------------------
+//
 // SVG parser.
 //
 //----------------------------------------------------------------------------
@@ -22,6 +36,7 @@
 #include <ctype.h>
 #include "agg_svg_parser.h"
 #include "expat.h"
+#include "agg_svg_gradient.h"
 
 namespace agg
 {
@@ -185,6 +200,40 @@ namespace svg
         { "zzzzzzzzzzz",0,0,0, 0 }
     }; 
 
+    //-------------------------------------------------------------
+    double parse_double(const char* str)
+    {
+        while(*str == ' ') ++str;
+        double value = atof(str);
+        // handle percent
+        int32 length = strlen(str);
+        if (str[length - 1] == '%')
+        value /= 100.0;
+        return value;
+    }
+  
+    // parse_url
+    char*
+    parse_url(const char* str)
+    {
+        const char* begin = str;
+        while (*begin != '#')
+            begin++;
+    
+        begin++;
+        const char* end = begin;
+        while (*end != ')')
+            end++;
+    
+        end--;
+    
+        int32 length = end - begin + 2;
+        char* result = new char[length];
+        memcpy(result, begin, length - 1);
+        result[length - 1] = 0;
+    
+        return result;
+    }
 
     //------------------------------------------------------------------------
     parser::~parser()
@@ -210,7 +259,8 @@ namespace svg
         m_attr_value_len(1023),
         m_swap_red_blue(false),
         m_width_in_mm(-1),
-        m_height_in_mm(-1)
+        m_height_in_mm(-1),
+        m_tags_ignored(false)
     {
         m_title[0] = 0;
         for (int i=0; i<4; i++)
@@ -221,21 +271,21 @@ namespace svg
     void parser::parse(const char* fname)
     {
         char msg[1024];
-	    XML_Parser p = XML_ParserCreate(NULL);
-	    if(p == 0) 
-	    {
-		    throw exception("Couldn't allocate memory for parser");
-	    }
+        XML_Parser p = XML_ParserCreate(NULL);
+        if(p == 0) 
+        {
+            throw exception("Couldn't allocate memory for parser");
+        }
 
         XML_SetUserData(p, this);
-	    XML_SetElementHandler(p, start_element, end_element);
-	    XML_SetCharacterDataHandler(p, content);
+        XML_SetElementHandler(p, start_element, end_element);
+        XML_SetCharacterDataHandler(p, content);
 
         FILE* fd = fopen(fname, "r");
         if(fd == 0)
         {
             sprintf(msg, "Couldn't open file %s", fname);
-		    throw exception(msg);
+                    throw exception(msg);
         }
 
         bool done = false;
@@ -263,7 +313,6 @@ namespace svg
             ++ts;
         }
     }
-
 
     void parser::parse_string(const char* svg_string)
     {
@@ -295,6 +344,11 @@ namespace svg
     {
         parser& self = *(parser*)data;
 
+        if (strcmp(el, "svg") == 0)
+        {
+          self.parse_svg(attr);
+        }
+        else
         if(strcmp(el, "title") == 0)
         {
             self.m_title_flag = true;
@@ -333,6 +387,11 @@ namespace svg
             self.parse_circle(attr);
         }
         else
+        if (strcmp(el, "ellipse") == 0)
+        {
+          self.parse_ellipse(attr);
+        }
+        else
         if(strcmp(el, "line") == 0) 
         {
             self.parse_line(attr);
@@ -347,11 +406,26 @@ namespace svg
         {
             self.parse_poly(attr, true);
         }
+        else
+        if (strcmp(el, "linearGradient") == 0 || strcmp(el, "radialGradient") == 0)
+        {
+            self.parse_gradient(attr, strcmp(el, "radialGradient") == 0);
+        }
+        else
+        if (strcmp(el, "stop") == 0)
+        {
+            self.parse_gradient_stop(attr);
+        }
         //else
         //if(strcmp(el, "<OTHER_ELEMENTS>") == 0) 
         //{
         //}
         // . . .
+        else
+        {
+            // fprintf(stderr, "SVGParser ignoring tag: \"%s\"\n", el);
+            self.m_tags_ignored = true;
+        }
     } 
 
 
@@ -373,6 +447,11 @@ namespace svg
         if(strcmp(el, "path") == 0)
         {
             self.m_path_flag = false;
+        }
+        else
+        if (strcmp(el, "linearGradient") == 0 || strcmp(el, "radialGradient") == 0)
+        {
+            self.m_path.end_gradient();
         }
         //else
         //if(strcmp(el, "<OTHER_ELEMENTS>") == 0) 
@@ -400,7 +479,6 @@ namespace svg
             }
         }
     }
-
 
     //------------------------------------------------------------------------
     void parser::parse_svg(const char** attr)
@@ -618,13 +696,6 @@ namespace svg
         }
     }
 
-    double parse_double(const char* str)
-    {
-        while(*str == ' ') ++str;
-        return atof(str);
-    }
-
-
 
     //-------------------------------------------------------------
     bool parser::parse_attr(const char* name, const char* value)
@@ -639,6 +710,12 @@ namespace svg
             if(strcmp(value, "none") == 0)
             {
                 m_path.fill_none();
+            }
+            else if (strncmp(value, "url", 3) == 0) 
+            {
+                char* url = parse_url(value);
+                m_path.fill_url(url);
+                delete[] url;
             }
             else
             {
@@ -656,11 +733,21 @@ namespace svg
             m_path.opacity(parse_double(value));
         }
         else
+        if(strcmp(name, "fill-rule") == 0) 
+        {
+           m_path.even_odd(strcmp(value, "evenodd") == 0);
+        }
+        else
         if(strcmp(name, "stroke") == 0)
         {
             if(strcmp(value, "none") == 0)
             {
                 m_path.stroke_none();
+            }
+            else if (strncmp(value, "url", 3) == 0) {
+                char* url = parse_url(value);
+                m_path.stroke_url(url);
+                delete[] url;
             }
             else
             {
@@ -699,8 +786,24 @@ namespace svg
         else
         if(strcmp(name, "transform") == 0)
         {
-            parse_transform(value);
+            m_path.transform().premultiply(parse_transform(value));
         }
+        else
+        if (strcmp(name, "stop-color") == 0) 
+        {
+            m_gradient_stop_color = parse_color(value, m_swap_red_blue);
+        } 
+        else
+        if (strcmp(name, "stop-opacity") == 0) {
+          m_gradient_stop_color.opacity(parse_double(value));
+        }
+        else
+        if (strncmp(value, "url", 3) == 0) 
+        {
+          char* url = parse_url(value);
+          m_path.fill_url(url);
+          delete[] url;
+        } 
         //else
         //if(strcmp(el, "<OTHER_ATTRIBUTES>") == 0) 
         //{
@@ -873,6 +976,49 @@ namespace svg
         m_path.end_path();
     }
 
+    // parse_ellipse
+    void
+    parser::parse_ellipse(const char** attr)
+    {
+        int i;
+        double cx = 0.0;
+        double cy = 0.0;
+        double rx = 0.0;
+        double ry = 0.0;
+
+        m_path.begin_path();
+        for(i = 0; attr[i]; i += 2) {
+            if (!parse_attr(attr[i], attr[i + 1])) {
+                if(strcmp(attr[i], "cx") == 0)    cx = parse_double(attr[i + 1]);
+                if(strcmp(attr[i], "cy") == 0)    cy = parse_double(attr[i + 1]);
+                if(strcmp(attr[i], "rx") == 0)    rx = parse_double(attr[i + 1]);
+                if(strcmp(attr[i], "ry") == 0)    ry = parse_double(attr[i + 1]);
+            }
+        }
+
+
+        if (rx != 0.0 && ry != 0.0) {
+            if (rx < 0.0) throw exception("parse_ellipse: Invalid x-radius: %f", rx);
+            if (ry < 0.0) throw exception("parse_ellipse: Invalid y-radius: %f", ry);
+
+            m_path.move_to(cx, cy - ry);
+            m_path.curve4(cx + rx * 0.56, cy - ry,
+                cx + rx, cy - ry * 0.56,
+                cx + rx, cy);
+            m_path.curve4(cx + rx, cy + ry * 0.56,
+                cx + rx * 0.56, cy + ry,
+                cx, cy + ry);
+            m_path.curve4(cx - rx * 0.56, cy + ry,
+                cx - rx, cy + ry * 0.56,
+                cx - rx, cy);
+            m_path.curve4(cx - rx, cy - ry * 0.56,
+                cx - rx * 0.56, cy - ry,
+                cx, cy - ry);
+            m_path.close_subpath();
+        }
+        m_path.end_path();
+    }
+
     //-------------------------------------------------------------
     void parser::parse_line(const char** attr)
     {
@@ -947,18 +1093,19 @@ namespace svg
     }
 
     //-------------------------------------------------------------
-    void parser::parse_transform(const char* str)
+    trans_affine parser::parse_transform(const char* str)
     {
+        trans_affine transform;
         while(*str)
         {
             if(islower(*str))
             {
-                if(strncmp(str, "matrix", 6) == 0)    str += parse_matrix(str);    else 
-                if(strncmp(str, "translate", 9) == 0) str += parse_translate(str); else 
-                if(strncmp(str, "rotate", 6) == 0)    str += parse_rotate(str);    else 
-                if(strncmp(str, "scale", 5) == 0)     str += parse_scale(str);     else 
-                if(strncmp(str, "skewX", 5) == 0)     str += parse_skew_x(str);    else 
-                if(strncmp(str, "skewY", 5) == 0)     str += parse_skew_y(str);    else
+                if(strncmp(str, "matrix", 6) == 0)    str += parse_matrix(str,transform);    else 
+                if(strncmp(str, "translate", 9) == 0) str += parse_translate(str,transform); else 
+                if(strncmp(str, "rotate", 6) == 0)    str += parse_rotate(str,transform);    else 
+                if(strncmp(str, "scale", 5) == 0)     str += parse_scale(str,transform);     else 
+                if(strncmp(str, "skewX", 5) == 0)     str += parse_skew_x(str,transform);    else 
+                if(strncmp(str, "skewY", 5) == 0)     str += parse_skew_y(str,transform);    else
                 {
                     ++str;
                 }
@@ -968,8 +1115,69 @@ namespace svg
                 ++str;
             }
         }
+        return transform;
     }
 
+    // parse_gradient
+    void
+        parser::parse_gradient(const char** attr, bool radial)
+    {
+        // printf("parser::parse_gradient(%s)\n", attr[0]);
+
+        m_path.start_gradient(radial);
+
+        for (int32 i = 0; attr[i]; i += 2)
+        {
+            /* if(!parse_attr(attr[i], attr[i + 1]))
+            {*/
+            if (strcmp(attr[i], "id") == 0)
+                m_path.current_gradient()->set_id(attr[i + 1]);
+            else if(strcmp(attr[i], "gradientTransform") == 0) {
+                m_path.current_gradient()->set_transformation(parse_transform(attr[i + 1]));
+            } else
+                m_path.current_gradient()->add_string(attr[i], attr[i + 1]);
+             /*}*/
+        }
+    }
+
+    // parse_gradient_stop
+    void
+        parser::parse_gradient_stop(const char** attr)
+    {
+        // printf("parser::parse_gradient_stop(%s)\n", attr[0]);
+
+        double offset = 0.0;
+        rgba8 color;
+        for (int32 i = 0; attr[i]; i += 2) {
+            if (strcmp(attr[i], "offset") == 0) {
+                offset = parse_double(attr[i + 1]);
+            } else
+                if (strcmp(attr[i], "style") == 0) {
+                    parse_style(attr[i + 1]);
+                    // here we get a bit hacky, in order not to change too much code at once...
+                    // historically, parse_style() was for parsing path attributes only, but
+                    // it comes in handy here as well, and I added "stop-color" and "stop-opacity"
+                    // to parse_name_value(). It remembers the color in "fGradientStopColor".
+                    // The color will of course be broken if the "style" attribute did not contain
+                    // any valid stuff.
+                    color = m_gradient_stop_color;
+                } else
+                    if (strcmp(attr[i], "stop-color") == 0) {
+                        color = parse_color(attr[i + 1], m_swap_red_blue);
+                    } else
+                        if (strcmp(attr[i], "stop-opacity") == 0) {
+                            color.opacity(parse_double(attr[i + 1]));
+                        }
+        }
+
+        // printf(" offset: %f, color: %d, %d, %d, %d\n", offset, color.r, color.g, color.b, color.a);
+
+        if (gradient* gradient = m_path.current_gradient()) {
+            gradient->add_stop(offset, color);
+        } else {
+            throw exception("parse_gradient_stop() outside of gradient tag!\n");
+        }
+    }
 
     //-------------------------------------------------------------
     static unsigned parse_transform_args(const char* str, 
@@ -1011,7 +1219,7 @@ namespace svg
     }
 
     //-------------------------------------------------------------
-    unsigned parser::parse_matrix(const char* str)
+    unsigned parser::parse_matrix(const char* str, trans_affine& transform)
     {
         double args[6];
         unsigned na = 0;
@@ -1020,37 +1228,37 @@ namespace svg
         {
             throw exception("parse_matrix: Invalid number of arguments");
         }
-        m_path.transform().premultiply(trans_affine(args[0], args[1], args[2], args[3], args[4], args[5]));
+        transform.premultiply(trans_affine(args[0], args[1], args[2], args[3], args[4], args[5]));
         return len;
     }
 
     //-------------------------------------------------------------
-    unsigned parser::parse_translate(const char* str)
+    unsigned parser::parse_translate(const char* str, trans_affine& transform)
     {
         double args[2];
         unsigned na = 0;
         unsigned len = parse_transform_args(str, args, 2, &na);
         if(na == 1) args[1] = 0.0;
-        m_path.transform().premultiply(trans_affine_translation(args[0], args[1]));
+        transform.premultiply(trans_affine_translation(args[0], args[1]));
         return len;
     }
 
     //-------------------------------------------------------------
-    unsigned parser::parse_rotate(const char* str)
+    unsigned parser::parse_rotate(const char* str, trans_affine& transform)
     {
         double args[3];
         unsigned na = 0;
         unsigned len = parse_transform_args(str, args, 3, &na);
         if(na == 1) 
         {
-            m_path.transform().premultiply(trans_affine_rotation(deg2rad(args[0])));
+            transform.premultiply(trans_affine_rotation(deg2rad(args[0])));
         }
         else if(na == 3)
         {
             trans_affine t = trans_affine_translation(-args[1], -args[2]);
             t *= trans_affine_rotation(deg2rad(args[0]));
             t *= trans_affine_translation(args[1], args[2]);
-            m_path.transform().premultiply(t);
+            transform.premultiply(t);
         }
         else
         {
@@ -1060,33 +1268,33 @@ namespace svg
     }
 
     //-------------------------------------------------------------
-    unsigned parser::parse_scale(const char* str)
+    unsigned parser::parse_scale(const char* str, trans_affine& transform)
     {
         double args[2];
         unsigned na = 0;
         unsigned len = parse_transform_args(str, args, 2, &na);
         if(na == 1) args[1] = args[0];
-        m_path.transform().premultiply(trans_affine_scaling(args[0], args[1]));
+        transform.premultiply(trans_affine_scaling(args[0], args[1]));
         return len;
     }
 
     //-------------------------------------------------------------
-    unsigned parser::parse_skew_x(const char* str)
+    unsigned parser::parse_skew_x(const char* str, trans_affine& transform)
     {
         double arg;
         unsigned na = 0;
         unsigned len = parse_transform_args(str, &arg, 1, &na);
-        m_path.transform().premultiply(trans_affine_skewing(deg2rad(arg), 0.0));
+        transform.premultiply(trans_affine_skewing(deg2rad(arg), 0.0));
         return len;
     }
 
     //-------------------------------------------------------------
-    unsigned parser::parse_skew_y(const char* str)
+    unsigned parser::parse_skew_y(const char* str, trans_affine& transform)
     {
         double arg;
         unsigned na = 0;
         unsigned len = parse_transform_args(str, &arg, 1, &na);
-        m_path.transform().premultiply(trans_affine_skewing(0.0, deg2rad(arg)));
+        transform.premultiply(trans_affine_skewing(0.0, deg2rad(arg)));
         return len;
     }
 

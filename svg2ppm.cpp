@@ -72,6 +72,7 @@ int main(int argc, char **argv)
     int argp = 1;
     string outfilename;
     bool do_bgr = false;
+    double scale = 1.0;
 
     while(argp < argc && argv[argp][0] == '-') {
         char *S_ = argv[argp++];
@@ -84,6 +85,7 @@ int main(int argc, char **argv)
                    "Options:\n"
                    "    -o outfilename   Set outfilename\n"
                    "    -bgr             Set bgr output mode\n"
+                   "    -s scale         Scale the output\n"
                    
                    );
             exit(0);
@@ -94,6 +96,10 @@ int main(int argc, char **argv)
         }
         CASE("-bgr") {
             do_bgr = true;
+            continue;
+        }
+        CASE("-s") {
+            scale = atof(argv[argp++]);
             continue;
         }
         die("Unknown option %s!\n", S_);
@@ -120,14 +126,15 @@ int main(int argc, char **argv)
     printf("view_box = %f %f %f %f\n", view_box[0],view_box[1],view_box[2],view_box[3]);
     double mx,my,Mx,My;
     path.bounding_rect(&mx,&my,&Mx,&My);
+    Mx*= scale;
+    My*= scale;
     PImg img(Mx+1,My+1);
     if (outfilename.size() == 0)
       outfilename = svgfilename + ".ppm";
     agg::trans_affine mtx;
-
+    mtx.scale(scale);
     typedef agg::pixfmt_rgb24 pixfmt;
     typedef agg::renderer_base<pixfmt> renderer_base;
-    typedef agg::renderer_scanline_aa_solid<renderer_base> renderer_solid;
     agg::rendering_buffer rbuf(img.buf,
                                img.width,
                                img.height,
@@ -136,7 +143,7 @@ int main(int argc, char **argv)
     renderer_base rbase(pixf);
     agg::rasterizer_scanline_aa<> pf;
     agg::scanline_p8 sl;
-    renderer_solid ren(rbase);
+    agg::rect_i cb(0,0,1000,1000);
     
     // Draw a white background in the buffer
     pf.move_to_d(0,0);
@@ -147,7 +154,7 @@ int main(int argc, char **argv)
                                    agg::rgba8(0xff,0xff,0xff,0xff));
     
     
-    path.render(pf, sl, ren, mtx, 1.0);
+    path.render(pf, sl, rbase, mtx, cb);
 
     img.save_ppm(outfilename.c_str());
     exit(0);

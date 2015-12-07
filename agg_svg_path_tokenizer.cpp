@@ -13,6 +13,15 @@
 //          http://www.antigrain.com
 //----------------------------------------------------------------------------
 //
+//change from haiku
+//
+// Copyright 2006, Haiku. All rights reserved.
+// Distributed under the terms of the MIT License.
+// Authors:
+//Stephan Aßmus <superstippi@gmx.de>
+//
+// Adrien Destugues: Fix parsing of numbers in svg files : the code used obsolete atod 
+//instead of strtod and led to numbers in the form 2.5e-4 to make the parsing fail as 'e' was interpreted as the end of the number.
 // SVG path tokenizer.
 //
 //----------------------------------------------------------------------------
@@ -116,27 +125,9 @@ namespace svg
     //------------------------------------------------------------------------
     bool path_tokenizer::parse_number()
     {
-        char buf[256]; // Should be enough for any number
-        char* buf_ptr = buf;
-
-        // Copy all sign characters
-        while((buf_ptr < buf+255 && *m_path == '-') || *m_path == '+')
-        {
-            *buf_ptr++ = *m_path++;
-        }
-
-        // Copy all numeric characters
-        while(buf_ptr < buf+255 && (is_numeric(*m_path) || *m_path=='e' || *m_path=='E' || *m_path == '-' || *m_path == '+'))
-        {
-            if(*m_path == '-' || *m_path == '+') {
-              //check previous was 'e' or 'E'
-                if(*(buf_ptr-1) != 'e' && *(buf_ptr-1) != 'E')
-                    break;
-            }
-            *buf_ptr++ = *m_path++;
-        }
-        *buf_ptr = 0;
-        m_last_number = atof(buf);
+        char* end;
+        m_last_number = strtod(m_path, &end);
+        m_path = end;
         return true;
     }
 
