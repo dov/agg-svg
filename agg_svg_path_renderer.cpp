@@ -507,7 +507,8 @@ namespace svg
     gradient*
     path_renderer::find_gradient(const char* name) const
     {
-        for (int32 i = 0; gradient* g = gradient_at(i); i++) {
+        for (int32 i = 0; i < (int)m_gradients.size(); i++) {
+            gradient* g = gradient_at(i);
             if (strcmp(g->id(), name) == 0)
                 return g;
         }
