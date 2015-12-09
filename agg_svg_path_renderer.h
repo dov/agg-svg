@@ -192,7 +192,6 @@ namespace svg
 
         typedef conv_transform<curved_count>   curved_trans;
         typedef conv_contour<curved_trans>     curved_trans_contour;
-        typedef agg::span_allocator<rgba8>     span_allocator_type;
     
         path_renderer();
         ~path_renderer()
@@ -349,22 +348,28 @@ namespace svg
         void render_gradient(Rasterizer& ras, 
             Scanline& sl,
             RendererBase& rb, const trans_affine& mtx, 
-            GradientFunction gradient_func, gradient::color_func_type &lut, int start,int end)
+            GradientFunction gradient_func,
+                             agg::svg::gradient_lut_opaque<agg::color_interpolator<typename RendererBase::color_type>, 256u>& lut,
+                             int start,int end)
         {
             typedef agg::span_interpolator_linear<> interpolator_type;
             interpolator_type     span_interpolator(mtx);
 
-            typedef agg::span_gradient<rgba8, 
+            typedef agg::span_gradient<typename RendererBase::color_type, 
                 interpolator_type, 
-                GradientFunction, 
-                gradient::color_func_type> span_gradient_type;
+                GradientFunction,
+                agg::svg::gradient_lut_opaque<agg::color_interpolator<typename RendererBase::color_type>, 256u>
+                > span_gradient_type;
 
             span_gradient_type span_gradient(span_interpolator, 
                                              gradient_func, 
                                              lut, 
                                              start, end);
 
-            agg::render_scanlines_aa(ras, sl, rb, m_alloc, span_gradient);
+            typedef agg::span_allocator<typename RendererBase::color_type> span_allocator_type;
+            span_allocator_type alloc;
+
+            agg::render_scanlines_aa(ras, sl, rb, alloc, span_gradient);
         }
 
         template<class Rasterizer, class Scanline, class RendererBase>
@@ -387,7 +392,7 @@ namespace svg
                     gl->set_opaque(opaque);
                 else
                     g->set_opaque(opaque);
-                gradient::color_func_type &lut = gl ? gl->lut() : g->lut(); 
+                agg::svg::gradient_lut_opaque<agg::color_interpolator<typename RendererBase::color_type>, 256u> lut = gl ? gl->lut() : g->lut(); 
                 if(g->type() == gradient::GRADIENT_CIRCULAR)
                 {
                     gradient_circle    gradient_func;
@@ -544,8 +549,6 @@ namespace svg
         attr_storage   m_attr_stack;
         trans_affine   m_transform;
         trans_affine   m_user_transform;
-
-        span_allocator_type m_alloc;
         std::vector<gradient*> m_gradients;
         gradient*	m_cur_gradient;
 

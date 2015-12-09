@@ -53,6 +53,10 @@ namespace agg {
             //--------------------------------------------------------------------
             gradient_lut_opaque() : m_color_lut(color_lut_size) {}
 
+            // Declare an assignment operator from another type.
+            template<typename W>
+            gradient_lut_opaque(const W& w);
+
             // Build Gradient Lut
             // First, call remove_all(), then add_color() at least twice, 
             // then build_lut(). Argument "offset" in add_color must be 
@@ -109,8 +113,8 @@ namespace agg {
             //--------------------------------------------------------------------
             color_profile_type  m_color_profile;
             color_lut_type      m_color_lut;
-        };
 
+        };
 
 
         //------------------------------------------------------------------------
@@ -169,6 +173,8 @@ namespace agg {
                 }
             }
         }
+
+
         class gradient {
         public:
             static const int lut_range = 128;
@@ -265,6 +271,11 @@ namespace agg {
             virtual ~radial_gradient();
             virtual void realize();
         };
+
+
+        template<>
+        template<>
+        gradient_lut_opaque<color_interpolator<gray8>, 256u>::gradient_lut_opaque(const gradient::color_func_type& rgb_lut);
 
     } // namespace svg
 } // namespace agg

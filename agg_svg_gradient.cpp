@@ -192,6 +192,15 @@ namespace agg {
             m_transform.premultiply(transform);
             m_gradient_lut.build_lut(1.0);
         }
+        template<>
+        template<>
+        gradient_lut_opaque<color_interpolator<gray8>, 256u>::gradient_lut_opaque(const gradient::color_func_type& rgb_lut)
+          : m_color_lut(256)
+        {
+          for (int i=0; i<256; i++)
+            m_color_lut[i] = rgb_lut[i];
+        }
+
 
     } // namespace svg
 } // namespace agg
