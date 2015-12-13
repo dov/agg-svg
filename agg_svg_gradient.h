@@ -204,6 +204,7 @@ namespace agg {
             virtual void    add_stop(double offset, rgba8 color);
             void    set_transformation(const trans_affine& transform);
             virtual void realize() = 0;
+            virtual gradient *clone() = 0;
 
             
             void add_string(const char *name, const char *string)
@@ -262,14 +263,20 @@ namespace agg {
             linear_gradient();
             virtual ~linear_gradient();
 
-            virtual void realize();
+            void realize() override;
+            gradient *clone() override {
+                return new linear_gradient(*this);
+            }
         };
 
         class radial_gradient : public gradient {
         public:
             radial_gradient();
             virtual ~radial_gradient();
-            virtual void realize();
+            void realize() override;
+            gradient *clone() override {
+                return new radial_gradient(*this);
+            }
         };
 
 

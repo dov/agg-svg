@@ -213,7 +213,11 @@ namespace svg
           m_curved_stroked_trans(m_curved_stroked, m_transform),
   
           m_curved_trans(m_curved_count, m_transform),
-          m_curved_trans_contour(m_curved_trans) { }
+          m_curved_trans_contour(m_curved_trans)
+        {
+          for (size_t i=0; i<other.m_gradients.size(); i++)
+                m_gradients.push_back(other.m_gradients[i]->clone());
+        }
 
         const path_renderer& operator=(const path_renderer& other)
         {
@@ -222,6 +226,8 @@ namespace svg
             m_attr_stack = other.m_attr_stack;
             m_transform = other.m_transform; 
             m_user_transform = other.m_user_transform;
+            for (size_t i=0; i<other.m_gradients.size(); i++)
+                m_gradients.push_back(other.m_gradients[i]->clone());
 
             return *this;
         }
@@ -403,7 +409,7 @@ namespace svg
                     gradient_x    gradient_func;
                     render_gradient(ras,sl,rb,mtxgr,gradient_func,lut,-gradient::lut_range,gradient::lut_range);                                
                 }
-            }                    
+            }
         }
 
         // Rendering. One can specify two additional parameters: 
